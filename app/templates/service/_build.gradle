@@ -2,7 +2,7 @@ apply plugin: 'gradle-one-jar'
 apply plugin: 'application'
 
 // The main class of the application
-mainClassName = '<%=packageName%>.AVService'
+mainClassName = '<%=packageName%>.<%=projectName%>service.<%=projectName%>Service'
 
 test {
     systemProperties 'property': 'value'

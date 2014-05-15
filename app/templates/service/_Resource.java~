@@ -1,0 +1,213 @@
+package com.hssnet.avservice.resources;
+
+import com.google.common.base.Optional;
+import com.hssnet.avservice.avdata.AVDataFileInterface;
+import com.hssnet.avservice.config.FTPConfig;
+import com.hssnet.avservice.core.Document;
+import com.hssnet.avservice.db.AVDataDAO;
+import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.core.header.ContentDisposition;
+import com.sun.jersey.core.header.FormDataContentDisposition;
+import com.sun.jersey.multipart.FormDataParam;
+
+import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MarkerFactory;
+
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.sql.Date;
+import java.util.List;
+
+/**
+ * Created by thelmkay on 1/8/14.
+ */
+@Path("/avservice/avdata")
+public class AVResource {
+    protected Logger logger = LoggerFactory.getLogger(AVResource.class);
+
+    protected AVDataFileInterface fileInterface;
+    protected AVDataDAO dao;
+    protected String serverRootPath;
+    protected List<FTPConfig> ftpDetials;
+
+    public AVResource(AVDataDAO dao, AVDataFileInterface fileInterface, final String serverRootPath,
+    		List<FTPConfig> ftpDetails) {
+        this.dao = dao;
+        this.fileInterface = fileInterface;
+        this.serverRootPath = serverRootPath;
+        this.ftpDetials = ftpDetails;
+        String[] argArray = {"{\"field1\":\"value1\",\"field2\":\"value2\",\"field3\":{\"subfield1\":\"subvalue1\"}}"};
+       // logger.info(MarkerFactory.getMarker("JSON"), "Message {}", "{"+field1":"value1","field2": "value2","field3": {"subfield1": "subvalue1"}}");
+    }
+    
+
+    private Optional<FTPConfig> lookupStore(String trust){
+    	for(int i = 0; i < ftpDetials.size(); i++){
+    		FTPConfig config = ftpDetials.get(i);
+    		if(config.getTrustName().equalsIgnoreCase(trust)){
+    			return Optional.of(config);
+    		}
+    	}
+    	return Optional.absent() ;
+    }
+    
+    @GET
+    @Path("/error")
+    public Response error(){
+    	String a  = null;
+    	try{
+    		a.toUpperCase();
+    	}catch(NullPointerException e){
+    		logger.error("Test Exception", e);
+    		return Response.ok().build();
+    	}
+    	return Response.ok().build();
+    }
+    
+    
+    /**
+     * 
+     * @param uploadedInputStream
+     * @param fileDetail
+     * @param avDataType
+     * @param foreignTable
+     * @param fTKey
+     * @param user
+     * @param mimeType
+     * @return
+     */
+    @POST
+	@Path("/upload")
+	@Consumes(MediaType.MULTIPART_FORM_DATA)
+	public Response uploadFile(
+		@FormDataParam("file") InputStream uploadedInputStream,
+		@FormDataParam("file") FormDataContentDisposition fileDetail,
+		@QueryParam("dataType")Optional<String> avDataType,@QueryParam("foreignTable")Optional<String> foreignTable,
+        @QueryParam("fkey")Optional<Integer> fTKey,@QueryParam("user") Optional<String> user,
+        @QueryParam("mime") Optional<String> mimeType, @QueryParam("trust")Optional<String> trust) {
+		
+		//check required parameters are set
+        if(fTKey.isPresent() && foreignTable.isPresent() && avDataType.isPresent() && user.isPresent()
+                && mimeType.isPresent() && uploadedInputStream != null && trust.isPresent()){
+            if(fTKey.get() > 0){
+            	logger.debug("Looking up store for trust: "+trust.get());
+            	Optional<FTPConfig> config = lookupStore(trust.get());
+            	if(!config.isPresent()){
+            		logger.warn("unabe to find trust in configuration, bad request");;
+            		return Response.status(400).build();
+            	}
+            	logger.debug("Store for trust "+trust.get()+" is "+config.get().getStoreName());
+            	logger.debug("Store location is: "+config.get().getBaseDirectory());
+            	
+                DateTime now = DateTime.now();
+                String hour = now.hourOfDay().getAsString();
+                String minute = now.minuteOfHour().getAsString();
+                String time = hour+minute; 
+                logger.debug("Creating avdata record at: "+now);
+                logger.debug("time: "+time);
+                Document document = new Document(0,avDataType.get(),foreignTable.get(),fTKey.get(),
+                        config.get().getStoreName(),new Date(now.toDate().getTime()),user.get(),new Date(now.toDate().getTime()),
+                        time,Optional.of(""),mimeType.get());
+               int rowChanged = dao.insertAVdata(document);
+               logger.debug("Record created, rows changed: "+rowChanged);
+                if(rowChanged == 1){
+                    List<Document> documents = dao.findDocumentsByEvent(document.getForeignKey());
+                    //TODO might need to order the keys returned in order to get the last one we inseretd
+                    //create file
+                    logger.debug("Creating file");
+                    fileInterface.updateBaseFilePath(config.get().getBaseDirectory());
+                    boolean success = fileInterface.createFile(documents.get(0).getAVDataKey(),uploadedInputStream);
+                    if(success){
+                    	logger.debug("Success");
+                        return Response.ok().build();
+                    }
+                }
+                logger.warn("Failed to create file");
+                return Response.serverError().build();
+            }
+            return Response.status(400).build();
+        }
+        return Response.status(400).build();
+	}
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<Document> searchAvData(@QueryParam("event") Optional<Integer> eventKey) throws WebApplicationException{
+
+        if(!eventKey.isPresent()){
+            throw new WebApplicationException(Response
+                    .status(Response.Status.BAD_REQUEST)
+                    .entity("event key required. Called the service using ?event=1234")
+                    .build());
+        }
+
+        List<Document> docs = dao.findDocumentsByEvent(eventKey.get());
+
+        for(final Document doc : docs){
+            doc.setUri(UriBuilder.fromPath("/avservice/avdata/resource").path(doc.getAVDataKey().toString()).build());
+        }
+        return docs;
+    }
+
+    /**
+     * just sends back an image
+     */
+    @GET
+    @Path("/resource/{identifier}")
+    @Produces(MediaType.WILDCARD)
+    public Response getAVImage(@PathParam("identifier")Integer key){
+        try {
+            Document metadata = dao.findAVDataByKey(key);
+            if(metadata==null){
+                logger.info("Unable to find metadata for id " + key);
+                throw new FileNotFoundException();
+            }
+
+            ContentDisposition contentDisposition = ContentDisposition.type("attachment")
+                    .fileName(metadata.getFilename())
+                    .build();
+
+            InputStream inputStream = fileInterface.retrieveFile(key);
+            Response response = Response.ok(inputStream, metadata.getMimeType())
+                    .header("Content-Disposition", contentDisposition)
+                    .build();
+            return response;
+
+        } catch (FileNotFoundException e) {
+            logger.info("Unable to open image for id " + key);
+            throw new WebApplicationException(Response
+                    .status(Response.Status.NOT_FOUND)
+                    .entity("Could not locate AV Data image for key " +key)
+                    .build());
+        }
+    }
+
+    @GET
+    @Path("/resource/{key}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getMetadata(@PathParam("key")Integer key){
+        Document metadata = dao.findAVDataByKey(key);
+        if(metadata==null){
+            throw new WebApplicationException(Response
+                    .status(ClientResponse.Status.NOT_FOUND)
+                    .entity("couldnt get metadata for " +key)
+                    .build());
+        }
+        metadata.setUri(UriBuilder.fromPath(serverRootPath).path("/avservice/avdata/resource").path(metadata.getAVDataKey().toString()).build());
+        Response response = Response.ok(metadata).build();
+        return response;
+    }
+}

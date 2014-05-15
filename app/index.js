@@ -4,7 +4,8 @@ var path = require('path');
 var yeoman = require('yeoman-generator');
 var yosay = require('yosay');
 var chalk = require('chalk');
-
+var figlet = require('figlet');
+var fs = require('fs');
 
 var DropwizardGenerator = yeoman.generators.Base.extend({
     init: function () {
@@ -79,13 +80,21 @@ var DropwizardGenerator = yeoman.generators.Base.extend({
         createSubDirs(core,this,"core");
         createSubDirs(client,this,"client");
         createSubDirs(service,this,"service");
-        
-        //    this.copy('_package.json', 'package.json');
-        //    this.copy('_bower.json', 'bower.json');
+        this.mkdir(service+"/src/dist/config");
+        this.copy('_package.json', 'package.json');
+        this.copy('_bower.json', 'bower.json');
     },
 
     projectfiles: function () {
-        
+        function writeBanner(path,banner){
+	    fs.writeFile(path, banner, function(err) {
+		if(err) {
+		    console.log(err);
+		} else {
+		    console.log("The file was saved!");
+		}
+	    }); 
+	}
         //this.copy('editorconfig', '.editorconfig');
         //this.copy('jshintrc', '.jshintrc');
         this.copy('gitignore','.gitignore');
@@ -94,11 +103,26 @@ var DropwizardGenerator = yeoman.generators.Base.extend({
         this.template("service/_build.gradle",this.projectName+"-service/build.gradle");
         this.template("_build.gradle","build.gradle");
         this.template("_settings.gradle","settings.gradle");
-        //stub service files
+        
+	//stub service files
         this.log(this.serviceWDir);
         this.template("service/_Service.java",this.serviceWDir+"/"+this.projectName+"Service.java");
-
+	this.template("service/_ServiceConfig.java",this.serviceWDir+"/"+this.projectName+"ServiceConfig.java");
+	this.template("service/_Resource.java",this.serviceWDir+"/"+this.projectName+"Resource.java");
+	this.copy("service/_settings.yml",this.projectName+"-service/src/dist/config/settings.yml");
+	
         //banner
+	figlet["context"] = this;
+	figlet(this.projectName, function(err, data) {
+	    if (err) {
+		console.log('Something went wrong...');
+		console.dir(err);
+		return;
+	    }
+	    console.log(data);
+	    writeBanner(figlet.context.projectName+"-service/src/main/resources/"+"banner.txt",data);
+	});
+
     }
 });
 

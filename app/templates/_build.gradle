@@ -16,7 +16,7 @@ repositories {
 allprojects{
 	apply plugin: 'eclipse'
 	task wrapper(type: Wrapper) {
-    gradleVersion = <%='gradleVersion'%>
+    gradleVersion = '<%=gradleVersion%>'
 	}	
     repositories {
         maven {

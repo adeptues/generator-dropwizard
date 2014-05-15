@@ -1,7 +1,6 @@
 package <%=packageName%>.<%=projectName%>service;
 
 import java.util.List;
-import com.hssnet.avservice.resources.*;
 import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Bootstrap;
 import com.yammer.dropwizard.config.Environment;
@@ -14,24 +13,25 @@ import org.slf4j.LoggerFactory;
 /**
  * Created by thelmkay on 1/8/14.
  */
-public class <%=projectName%>Service extends Service<AVServiceConfig>{
-    protected Logger logger = LoggerFactory.getLogger(AVService.class);
+public class <%=projectName%>Service extends Service<<%=projectName%>ServiceConfig>{
+    protected Logger logger = LoggerFactory.getLogger( <%=projectName%>Service.class);
     public static void main(String [] args) throws Exception {
         new  <%=projectName%>Service().run(args);
     }
     @Override
-    public void initialize(Bootstrap<AVServiceConfig> bootstrap) {
+    public void initialize(Bootstrap<<%=projectName%>ServiceConfig> bootstrap) {
 
     }
 
     @Override
-    public void run(AVServiceConfig config, Environment environment) throws Exception {
+    public void run(<%=projectName%>ServiceConfig config, Environment environment) throws Exception {
         final DBIFactory factory = new DBIFactory();
         final DBI jdbi = factory.build(environment, config.getDatabaseConfiguration(), "postgresql");
 
         //MyDAO dao = jdbi.onDemand(MyDAO.class);
-        //        AVResource resource = new AVResource(dao, avDataFileInterface, serverRootPath.replace("*",""),ftpDetails);
+        
+	<%=projectName%>Resource resource = new <%=projectName%>Resource();
 
-        environment.addResource(resource);
+	environment.addResource(resource);
     }
 }

@@ -1,4 +1,4 @@
-package com.hssnet.avservice.config;
+package <%=packageName%>.<%=projectName%>service;
 
 
 import java.util.List;
@@ -13,36 +13,17 @@ import javax.validation.constraints.NotNull;
 /**
  * Created by thelmkay on 1/8/14.
  */
-public class AVServiceConfig extends Configuration {
+public class <%=projectName%>ServiceConfig extends Configuration {
     private String defaultName;
-
-    @Valid
-    @NotNull
-    private String fileSystemRoot;
 
     @Valid
     @NotNull
     @JsonProperty
     private DatabaseConfiguration database = new DatabaseConfiguration();
     
-    @JsonProperty
-    private List<FTPConfig> ftpDetails;
     
     
 
-    /**
-	 * @return the ftpDetails
-	 */
-	public List<FTPConfig> getFtpDetails() {
-		return ftpDetails;
-	}
-
-	/**
-	 * @param ftpDetails the ftpDetails to set
-	 */
-	public void setFtpDetails(List<FTPConfig> ftpDetails) {
-		this.ftpDetails = ftpDetails;
-	}
 
 	public DatabaseConfiguration getDatabaseConfiguration() {
         return database;
@@ -56,11 +37,5 @@ public class AVServiceConfig extends Configuration {
         return defaultName;
     }
 
-    public String getFileSystemRoot() {
-        return fileSystemRoot;
-    }
 
-    public void setFileSystemRoot(String fileSystemRoot) {
-        this.fileSystemRoot = fileSystemRoot;
-    }
 }

@@ -109,6 +109,8 @@ var DropwizardGenerator = yeoman.generators.Base.extend({
         this.template("service/_Service.java",this.serviceWDir+"/"+this.projectName+"Service.java");
 	this.template("service/_ServiceConfig.java",this.serviceWDir+"/"+this.projectName+"ServiceConfig.java");
 	this.template("service/_Resource.java",this.serviceWDir+"/"+this.projectName+"Resource.java");
+	this.template("service/_ServiceConfigProvider.java",this.serviceWDir+"/"+this.projectName+"ServiceConfigProvider.java");
+	this.template("service/_ServiceBundle.java",this.serviceWDir+"/"+this.projectName+"ServiceBundle.java");
 	this.copy("service/_settings.yml",this.projectName+"-service/src/dist/config/settings.yml");
 	
         //banner
